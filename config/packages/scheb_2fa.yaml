@@ -1,0 +1,13 @@
+# See the configuration reference at https://symfony.com/bundles/SchebTwoFactorBundle/6.x/configuration.html
+scheb_two_factor:
+    security_tokens:
+        - Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+        - Acme\AuthenticationBundle\Token\CustomAuthenticationToken
+    google:
+        enabled: true                  # If Google Authenticator should be enabled, default false
+        server_name: Server Name       # Server name used in QR code
+        issuer: name of the app            # Issuer name used in QR code
+        digits: 6                      # Number of digits in authentication code
+        leeway: 15                      # Acceptable time drift in seconds, must be less or equal than 30 seconds
+        template: enable2fa.html.twig  # Template used to enable Google Authenticator
