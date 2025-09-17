@@ -10,4 +10,3 @@ scheb_two_factor:
         issuer: name of the app            # Issuer name used in QR code
         digits: 6                      # Number of digits in authentication code
         leeway: 15                      # Acceptable time drift in seconds, must be less or equal than 30 seconds
-        template: enable2fa.html.twig  # Template used to enable Google Authenticator

@@ -37,6 +37,10 @@ class SecurityController extends AbstractController
     #[Route(path: '/enable2fa', name: 'app_enable_2fa')]
     public function enable2fa(GoogleAuthenticatorInterface $googleAuthenticator, EntityManagerInterface $entityManager, Request $request): Response
     {
+        $user = $this->getUser();
+        $secret = $googleAuthenticator->generateSecret();
+
+
         $myForm = $this->createForm(Enable2faType::class);
         $myForm->handleRequest($request);
 
@@ -47,19 +51,17 @@ class SecurityController extends AbstractController
             // Vérifie le code saisi par l'utilisateur
             if ($googleAuthenticator->checkCode($user, $data['secret'])) {
                 $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+                $user->setGoogleAuthenticatorSecret($secret);
+                $entityManager->persist($user);
+                $entityManager->flush();
                 return $this->redirectToRoute('app_logout');
             } else {
                 $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
             }
         }
 
-        $user = $this->getUser();
-        $secret = $googleAuthenticator->generateSecret();
 
-        // Enregistre le secret dans l'entité User
-        $user->setGoogleAuthenticatorSecret($secret);
-        $entityManager->persist($user);
-        $entityManager->flush();
+
 
         //Génère le QR code
         $qrCodeContent = $googleAuthenticator->getQRContent($user);
