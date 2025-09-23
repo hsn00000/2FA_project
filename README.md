@@ -244,3 +244,173 @@ scheb_two_factor:
     trusted_device:
         enabled: true
         lifetime: 2592000 # 30 jours
+
+Explication de SecurityController.php/enable2fa: 
+
+#[Route(path: '/enable2fa', name: 'app_enable_2fa')]
+    #[IsGranted('ROLE_USER')] // Assurez-vous que l'utilisateur est connecté
+    public function enable2fa(GoogleAuthenticatorInterface $googleAuthenticator, EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
+    {
+        // Récupère l'utilisateur actuellement connecté
+        $user = $this->getUser();
+
+        $secret = $session->get('2fa_secret');
+        if (!$secret) {
+            // Génère un nouveau secret et le stocke dans la session
+            $secret = $googleAuthenticator->generateSecret();
+            $session->set('2fa_secret', $secret);
+        }
+        // Assigne le secret à l'utilisateur
+        $user->setGoogleAuthenticatorSecret($secret);
+        // Crée et gère le formulaire
+        $myForm = $this->createForm(Enable2faType::class);
+        $myForm->handleRequest($request);
+
+        if ($myForm->isSubmitted() && $myForm->isValid()) {
+            $data = $myForm->getData();
+
+            // Vérifie le code saisi par l'utilisateur
+            if ($googleAuthenticator->checkCode($user, $data['secret'])) {
+                $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+                $entityManager->persist($user);
+                $entityManager->flush();
+                return $this->redirectToRoute('app_login');
+            } else {
+                $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
+            }
+        }
+
+        //Génère le QR code
+        $qrCodeContent = $googleAuthenticator->getQRContent($user);
+
+        return $this->render('enable2fa.html.twig', [
+            'secret' => $secret,
+            'myForm' => $myForm,
+            'qrCodeContent' => $qrCodeContent,
+        ]);
+    }
+
+    1. Déclaration de la route et sécurité
+#[Route(path: '/enable2fa', name: 'app_enable_2fa')]
+#[IsGranted('ROLE_USER')] // Assurez-vous que l'utilisateur est connecté
+
+
+#[Route] : Déclare l’URL /enable2fa et le nom de route app_enable_2fa.
+
+#[IsGranted('ROLE_USER')] : Seuls les utilisateurs connectés (ayant le rôle ROLE_USER) peuvent accéder à cette action.
+
+2. Méthode enable2fa
+public function enable2fa(
+    GoogleAuthenticatorInterface $googleAuthenticator, 
+    EntityManagerInterface $entityManager, 
+    Request $request, 
+    SessionInterface $session
+): Response
+
+
+Cette méthode reçoit plusieurs services :
+
+$googleAuthenticator : pour générer et vérifier le code 2FA.
+
+$entityManager : pour sauvegarder les données utilisateur dans la base.
+
+$request : contient les données HTTP (GET, POST…).
+
+$session : permet de stocker temporairement le secret 2FA.
+
+3. Récupération de l’utilisateur
+$user = $this->getUser();
+
+
+Récupère l’utilisateur actuellement connecté.
+
+4. Gestion du secret 2FA
+$secret = $session->get('2fa_secret');
+if (!$secret) {
+    $secret = $googleAuthenticator->generateSecret();
+    $session->set('2fa_secret', $secret);
+}
+
+
+Cherche si un secret 2FA existe déjà dans la session.
+
+Sinon, génère un nouveau secret et le stocke dans la session.
+
+Le secret est ensuite associé à l’utilisateur :
+
+$user->setGoogleAuthenticatorSecret($secret);
+
+5. Création et gestion du formulaire
+$myForm = $this->createForm(Enable2faType::class);
+$myForm->handleRequest($request);
+
+
+Crée un formulaire de type Enable2faType (probablement un formulaire pour entrer le code 2FA).
+
+handleRequest : lie le formulaire aux données envoyées par l’utilisateur.
+
+6. Validation du formulaire
+if ($myForm->isSubmitted() && $myForm->isValid()) {
+    $data = $myForm->getData();
+    if ($googleAuthenticator->checkCode($user, $data['secret'])) {
+        $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+        $entityManager->persist($user);
+        $entityManager->flush();
+        return $this->redirectToRoute('app_login');
+    } else {
+        $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
+    }
+}
+
+
+Si le formulaire est soumis et valide :
+
+Récupère les données du formulaire ($data['secret'] correspond au code 2FA entré par l’utilisateur).
+
+Vérifie le code avec $googleAuthenticator->checkCode.
+
+Si correct :
+
+Ajoute un message de succès.
+
+Sauvegarde l’utilisateur avec le secret 2FA activé.
+
+Redirige vers la page de login.
+
+Sinon, affiche un message d’erreur.
+
+7. Génération du QR code
+$qrCodeContent = $googleAuthenticator->getQRContent($user);
+
+
+Génère un QR code que l’utilisateur peut scanner avec l’application Google Authenticator pour lier son compte.
+
+8. Rendu de la vue
+return $this->render('enable2fa.html.twig', [
+    'secret' => $secret,
+    'myForm' => $myForm,
+    'qrCodeContent' => $qrCodeContent,
+]);
+
+
+Envoie à la vue :
+
+Le secret (au cas où l’utilisateur voudrait le copier manuellement).
+
+Le formulaire.
+
+Le contenu du QR code pour le scanner avec l’application mobile.
+
+✅ Résumé du fonctionnement
+
+L’utilisateur connecté accède à /enable2fa.
+
+Le système génère ou récupère un secret 2FA.
+
+Affiche un QR code et un formulaire pour entrer le code généré par l’application.
+
+L’utilisateur entre le code → validation :
+
+Correct → 2FA activé et secret sauvegardé.
+
+Incorrect → message d’erreur.
