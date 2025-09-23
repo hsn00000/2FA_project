@@ -1,10 +1,10 @@
-Authentification à deux facteurs (2FA) avec Google Authenticator – Symfony
+🔐 Authentification à deux facteurs (2FA) avec Google Authenticator – Symfony
 
 Documentation basée sur le bundle SchebTwoFactorBundle
+.
+Ce guide explique pas à pas comment installer, configurer et activer la 2FA avec Google Authenticator dans un projet Symfony.
 
-1) Installation du projet Symfony
-
-(Source : installation classique Symfony)
+⚙️ 1) Installation du projet Symfony
 
 Cloner le dépôt :
 
@@ -19,16 +19,16 @@ composer install
 
 Configurer l’environnement :
 
-Copier le fichier .env en .env.local
+Copier .env → .env.local
 
-Paramétrer la connexion à la base de données
+Configurer la base de données
 
 Créer la base de données :
 
 symfony console doctrine:database:create
 
 
-Appliquer les migrations :
+Exécuter les migrations :
 
 symfony console doctrine:migrations:migrate
 
@@ -38,21 +38,18 @@ Lancer le serveur Symfony :
 symfony server:start -d
 
 
-Ajouter un utilisateur de test :
+Créer un utilisateur de test :
 
 symfony console app:add-user user@example.com motdepasse --role ROLE_ADMIN
 
-2) Installation du bundle 2FA
-
-(Source : Installation – SchebTwoFactorBundle
-)
+🔧 2) Installation du bundle 2FA
 
 Installer le bundle principal et Google Authenticator :
 
 composer require scheb/2fa-bundle scheb/2fa-google-authenticator
 
 
-(Optionnel) Installer des modules supplémentaires :
+(Optionnel) Ajouter d’autres fonctionnalités :
 
 composer require scheb/2fa-backup-code
 composer require scheb/2fa-trusted-device
@@ -61,38 +58,31 @@ composer require scheb/2fa-trusted-device
 Vérifier que le bundle est bien activé dans config/bundles.php :
 
 return [
-// ...
-Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
+    // ...
+    Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
 ];
 
-3) Configuration des routes 2FA
+🛣️ 3) Configuration des routes
 
-(Source : Routes – SchebTwoFactorBundle
-)
+Créer le fichier config/routes/scheb_2fa.yaml :
 
-Créer ou modifier le fichier config/routes/scheb_2fa.yaml :
-
-# config/routes/scheb_2fa.yaml
 2fa_login:
-path: /2fa
-controller: "scheb_two_factor.form_controller::form"
+    path: /2fa
+    controller: "scheb_two_factor.form_controller::form"
 
 2fa_login_check:
-path: /2fa_check
+    path: /2fa_check
 
-4) Configuration de la sécurité
+🛡️ 4) Configuration de la sécurité (security.yaml)
 
-(Source : Security configuration
-)
-
-Exemple minimal dans config/packages/security.yaml :
+Configurer le firewall pour activer la 2FA :
 
 security:
-providers:
-app_user_provider:
-entity:
-class: App\Entity\User
-property: email
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
 
     firewalls:
         main:
@@ -104,16 +94,13 @@ property: email
                 auth_form_path: 2fa_login
                 check_path: 2fa_login_check
 
-5) Configuration du bundle
-
-(Source : Configuration – SchebTwoFactorBundle
-)
+📦 5) Configuration du bundle (scheb_two_factor.yaml)
 
 Créer le fichier config/packages/scheb_two_factor.yaml :
 
 scheb_two_factor:
-security_tokens:
-- Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+    security_tokens:
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
 
     google:
         enabled: true
@@ -122,12 +109,9 @@ security_tokens:
         digits: 6
         window: 1
 
-6) Mise à jour de l’entité User
+👤 6) Mise à jour de l’entité User
 
-(Source : Google Authenticator – User entity
-)
-
-Exemple dans src/Entity/User.php :
+L’entité User doit implémenter TwoFactorInterface.
 
 use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -135,8 +119,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
-#[ORM\Column(type: 'boolean')]
-private bool $isGoogleAuthenticatorEnabled = false;
+    #[ORM\Column(type: 'boolean')]
+    private bool $isGoogleAuthenticatorEnabled = false;
 
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $googleAuthenticatorSecret = null;
@@ -176,12 +160,9 @@ private bool $isGoogleAuthenticatorEnabled = false;
 symfony console make:migration
 symfony console doctrine:migrations:migrate
 
-7) Génération du secret Google Authenticator
+🔑 7) Génération du secret Google Authenticator
 
-(Source : Google Authenticator – Generating secrets
-)
-
-Exemple de commande pour activer la 2FA et générer un QR Code :
+Exemple de commande Symfony pour activer la 2FA et générer un QR Code :
 
 namespace App\Command;
 
@@ -197,12 +178,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'app:enable-2fa')]
 class Enable2FACommand extends Command
 {
-public function __construct(
-private EntityManagerInterface $em,
-private GoogleAuthenticatorInterface $googleAuthenticator
-) {
-parent::__construct();
-}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private GoogleAuthenticatorInterface $googleAuthenticator
+    ) {
+        parent::__construct();
+    }
 
     protected function configure()
     {
@@ -237,31 +218,29 @@ Exécution :
 
 symfony console app:enable-2fa user@example.com
 
-8) Workflow utilisateur
-
-(Source : résumé du bundle)
+🔄 8) Workflow utilisateur
 
 L’utilisateur se connecte avec email + mot de passe.
 
 Symfony redirige vers /2fa.
 
-L’utilisateur saisit le code généré par Google Authenticator.
+L’utilisateur saisit le code temporaire généré par Google Authenticator.
 
-Si le code est correct → connexion réussie.
+✅ Connexion validée si le code est correct.
 
-9) (Optionnel) Codes de secours et appareils de confiance
+🛠️ 9) Options supplémentaires
 
-(Source : Backup codes
-, Trusted devices
-)
+Codes de secours : scheb/2fa-backup-code
 
-Exemple de config dans scheb_two_factor.yaml :
+Appareils de confiance : scheb/2fa-trusted-device
+
+Exemple de config :
 
 scheb_two_factor:
-backup_codes:
-enabled: true
-codes: 10
-length: 6
-trusted_device:
-enabled: true
-lifetime: 2592000 # 30 jours
+    backup_codes:
+        enabled: true
+        codes: 10
+        length: 6
+    trusted_device:
+        enabled: true
+        lifetime: 2592000 # 30 jours
