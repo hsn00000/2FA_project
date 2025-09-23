@@ -1,8 +1,7 @@
 🔐 Authentification à deux facteurs (2FA) avec Google Authenticator – Symfony
 
-Documentation basée sur le bundle SchebTwoFactorBundle
-.
-Ce guide explique pas à pas comment installer, configurer et activer la 2FA avec Google Authenticator dans un projet Symfony.
+Documentation basée sur le SchebTwoFactorBundle.
+Ce guide explique comment installer, configurer et activer la 2FA dans un projet Symfony.
 
 ⚙️ 1) Installation du projet Symfony
 
@@ -19,9 +18,8 @@ composer install
 
 Configurer l’environnement :
 
-Copier .env → .env.local
+cp .env .env.local
 
-Configurer la base de données
 
 Créer la base de données :
 
@@ -49,13 +47,13 @@ Installer le bundle principal et Google Authenticator :
 composer require scheb/2fa-bundle scheb/2fa-google-authenticator
 
 
-(Optionnel) Ajouter d’autres fonctionnalités :
+Optionnel : Ajouter des fonctionnalités supplémentaires (codes de secours, appareils de confiance) :
 
 composer require scheb/2fa-backup-code
 composer require scheb/2fa-trusted-device
 
 
-Vérifier que le bundle est bien activé dans config/bundles.php :
+Vérifier que le bundle est activé dans config/bundles.php :
 
 return [
     // ...
@@ -109,9 +107,21 @@ scheb_two_factor:
         digits: 6
         window: 1
 
+
+Options supplémentaires :
+
+scheb_two_factor:
+    backup_codes:
+        enabled: true
+        codes: 10
+        length: 6
+    trusted_device:
+        enabled: true
+        lifetime: 2592000 # 30 jours
+
 👤 6) Mise à jour de l’entité User
 
-L’entité User doit implémenter TwoFactorInterface.
+L’entité User doit implémenter TwoFactorInterface :
 
 use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -155,7 +165,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFact
 }
 
 
-⚠️ Après modification :
+Après modification :
 
 symfony console make:migration
 symfony console doctrine:migrations:migrate
@@ -214,7 +224,7 @@ class Enable2FACommand extends Command
 }
 
 
-Exécution :
+Exécution de la commande :
 
 symfony console app:enable-2fa user@example.com
 
@@ -226,15 +236,15 @@ Symfony redirige vers /2fa.
 
 L’utilisateur saisit le code temporaire généré par Google Authenticator.
 
-✅ Connexion validée si le code est correct.
+La connexion est validée si le code est correct.
 
 🛠️ 9) Options supplémentaires
 
-Codes de secours : scheb/2fa-backup-code
+Codes de secours : via scheb/2fa-backup-code
 
-Appareils de confiance : scheb/2fa-trusted-device
+Appareils de confiance : via scheb/2fa-trusted-device
 
-Exemple de config :
+Exemple de configuration :
 
 scheb_two_factor:
     backup_codes:
@@ -244,3 +254,98 @@ scheb_two_factor:
     trusted_device:
         enabled: true
         lifetime: 2592000 # 30 jours
+
+📄 10) Explication de SecurityController.php::enable2fa
+#[Route(path: '/enable2fa', name: 'app_enable_2fa')]
+#[IsGranted('ROLE_USER')]
+public function enable2fa(
+    GoogleAuthenticatorInterface $googleAuthenticator, 
+    EntityManagerInterface $entityManager, 
+    Request $request, 
+    SessionInterface $session
+): Response
+{
+    $user = $this->getUser();
+
+    $secret = $session->get('2fa_secret');
+    if (!$secret) {
+        $secret = $googleAuthenticator->generateSecret();
+        $session->set('2fa_secret', $secret);
+    }
+
+    $user->setGoogleAuthenticatorSecret($secret);
+
+    $myForm = $this->createForm(Enable2faType::class);
+    $myForm->handleRequest($request);
+
+    if ($myForm->isSubmitted() && $myForm->isValid()) {
+        $data = $myForm->getData();
+
+        if ($googleAuthenticator->checkCode($user, $data['secret'])) {
+            $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+            $entityManager->persist($user);
+            $entityManager->flush();
+            return $this->redirectToRoute('app_login');
+        } else {
+            $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
+        }
+    }
+
+    $qrCodeContent = $googleAuthenticator->getQRContent($user);
+
+    return $this->render('enable2fa.html.twig', [
+        'secret' => $secret,
+        'myForm' => $myForm,
+        'qrCodeContent' => $qrCodeContent,
+    ]);
+}
+
+🔹 Explication rapide :
+
+Route et sécurité
+
+#[Route(...)] : définit l’URL /enable2fa et le nom de route.
+
+#[IsGranted('ROLE_USER')] : accessible uniquement aux utilisateurs connectés.
+
+Récupération de l’utilisateur : $user = $this->getUser();
+
+Gestion du secret 2FA
+
+Vérifie si un secret existe dans la session.
+
+Sinon, génère un nouveau secret et l’assigne à l’utilisateur.
+
+Formulaire 2FA
+
+Création et gestion du formulaire Enable2faType.
+
+Vérifie le code entré par l’utilisateur.
+
+Validation
+
+Si correct → active la 2FA et sauvegarde l’utilisateur.
+
+Sinon → affiche un message d’erreur.
+
+QR Code
+
+Généré pour que l’utilisateur puisse scanner avec Google Authenticator.
+
+Rendu de la vue
+
+Passe à la vue le secret, le formulaire et le QR code.
+
+✅ Résumé du fonctionnement :
+
+L’utilisateur connecté accède à /enable2fa.
+
+Le système génère ou récupère un secret 2FA.
+
+Affiche un QR code et un formulaire pour entrer le code.
+
+Validation :
+
+Correct → 2FA activé et secret sauvegardé.
+
+Incorrect → message d’erreur.
