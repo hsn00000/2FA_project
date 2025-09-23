@@ -1,8 +1,7 @@
 🔐 Authentification à deux facteurs (2FA) avec Google Authenticator – Symfony
 
-Documentation basée sur le bundle SchebTwoFactorBundle
-.
-Ce guide explique pas à pas comment installer, configurer et activer la 2FA avec Google Authenticator dans un projet Symfony.
+Documentation basée sur le SchebTwoFactorBundle.
+Ce guide explique comment installer, configurer et activer la 2FA dans un projet Symfony.
 
 ⚙️ 1) Installation du projet Symfony
 
@@ -19,9 +18,8 @@ composer install
 
 Configurer l’environnement :
 
-Copier .env → .env.local
+cp .env .env.local
 
-Configurer la base de données
 
 Créer la base de données :
 
@@ -49,13 +47,13 @@ Installer le bundle principal et Google Authenticator :
 composer require scheb/2fa-bundle scheb/2fa-google-authenticator
 
 
-(Optionnel) Ajouter d’autres fonctionnalités :
+Optionnel : Ajouter des fonctionnalités supplémentaires (codes de secours, appareils de confiance) :
 
 composer require scheb/2fa-backup-code
 composer require scheb/2fa-trusted-device
 
 
-Vérifier que le bundle est bien activé dans config/bundles.php :
+Vérifier que le bundle est activé dans config/bundles.php :
 
 return [
     // ...
@@ -109,9 +107,21 @@ scheb_two_factor:
         digits: 6
         window: 1
 
+
+Options supplémentaires :
+
+scheb_two_factor:
+    backup_codes:
+        enabled: true
+        codes: 10
+        length: 6
+    trusted_device:
+        enabled: true
+        lifetime: 2592000 # 30 jours
+
 👤 6) Mise à jour de l’entité User
 
-L’entité User doit implémenter TwoFactorInterface.
+L’entité User doit implémenter TwoFactorInterface :
 
 use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
 use Doctrine\ORM\Mapping as ORM;
@@ -155,7 +165,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFact
 }
 
 
-⚠️ Après modification :
+Après modification :
 
 symfony console make:migration
 symfony console doctrine:migrations:migrate
@@ -214,7 +224,7 @@ class Enable2FACommand extends Command
 }
 
 
-Exécution :
+Exécution de la commande :
 
 symfony console app:enable-2fa user@example.com
 
@@ -226,15 +236,15 @@ Symfony redirige vers /2fa.
 
 L’utilisateur saisit le code temporaire généré par Google Authenticator.
 
-✅ Connexion validée si le code est correct.
+La connexion est validée si le code est correct.
 
 🛠️ 9) Options supplémentaires
 
-Codes de secours : scheb/2fa-backup-code
+Codes de secours : via scheb/2fa-backup-code
 
-Appareils de confiance : scheb/2fa-trusted-device
+Appareils de confiance : via scheb/2fa-trusted-device
 
-Exemple de config :
+Exemple de configuration :
 
 scheb_two_factor:
     backup_codes:
@@ -245,171 +255,96 @@ scheb_two_factor:
         enabled: true
         lifetime: 2592000 # 30 jours
 
-Explication de SecurityController.php/enable2fa: 
-
+📄 10) Explication de SecurityController.php::enable2fa
 #[Route(path: '/enable2fa', name: 'app_enable_2fa')]
-    #[IsGranted('ROLE_USER')] // Assurez-vous que l'utilisateur est connecté
-    public function enable2fa(GoogleAuthenticatorInterface $googleAuthenticator, EntityManagerInterface $entityManager, Request $request, SessionInterface $session): Response
-    {
-        // Récupère l'utilisateur actuellement connecté
-        $user = $this->getUser();
-
-        $secret = $session->get('2fa_secret');
-        if (!$secret) {
-            // Génère un nouveau secret et le stocke dans la session
-            $secret = $googleAuthenticator->generateSecret();
-            $session->set('2fa_secret', $secret);
-        }
-        // Assigne le secret à l'utilisateur
-        $user->setGoogleAuthenticatorSecret($secret);
-        // Crée et gère le formulaire
-        $myForm = $this->createForm(Enable2faType::class);
-        $myForm->handleRequest($request);
-
-        if ($myForm->isSubmitted() && $myForm->isValid()) {
-            $data = $myForm->getData();
-
-            // Vérifie le code saisi par l'utilisateur
-            if ($googleAuthenticator->checkCode($user, $data['secret'])) {
-                $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
-                $entityManager->persist($user);
-                $entityManager->flush();
-                return $this->redirectToRoute('app_login');
-            } else {
-                $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
-            }
-        }
-
-        //Génère le QR code
-        $qrCodeContent = $googleAuthenticator->getQRContent($user);
-
-        return $this->render('enable2fa.html.twig', [
-            'secret' => $secret,
-            'myForm' => $myForm,
-            'qrCodeContent' => $qrCodeContent,
-        ]);
-    }
-
-    1. Déclaration de la route et sécurité
-#[Route(path: '/enable2fa', name: 'app_enable_2fa')]
-#[IsGranted('ROLE_USER')] // Assurez-vous que l'utilisateur est connecté
-
-
-#[Route] : Déclare l’URL /enable2fa et le nom de route app_enable_2fa.
-
-#[IsGranted('ROLE_USER')] : Seuls les utilisateurs connectés (ayant le rôle ROLE_USER) peuvent accéder à cette action.
-
-2. Méthode enable2fa
+#[IsGranted('ROLE_USER')]
 public function enable2fa(
     GoogleAuthenticatorInterface $googleAuthenticator, 
     EntityManagerInterface $entityManager, 
     Request $request, 
     SessionInterface $session
 ): Response
+{
+    $user = $this->getUser();
 
-
-Cette méthode reçoit plusieurs services :
-
-$googleAuthenticator : pour générer et vérifier le code 2FA.
-
-$entityManager : pour sauvegarder les données utilisateur dans la base.
-
-$request : contient les données HTTP (GET, POST…).
-
-$session : permet de stocker temporairement le secret 2FA.
-
-3. Récupération de l’utilisateur
-$user = $this->getUser();
-
-
-Récupère l’utilisateur actuellement connecté.
-
-4. Gestion du secret 2FA
-$secret = $session->get('2fa_secret');
-if (!$secret) {
-    $secret = $googleAuthenticator->generateSecret();
-    $session->set('2fa_secret', $secret);
-}
-
-
-Cherche si un secret 2FA existe déjà dans la session.
-
-Sinon, génère un nouveau secret et le stocke dans la session.
-
-Le secret est ensuite associé à l’utilisateur :
-
-$user->setGoogleAuthenticatorSecret($secret);
-
-5. Création et gestion du formulaire
-$myForm = $this->createForm(Enable2faType::class);
-$myForm->handleRequest($request);
-
-
-Crée un formulaire de type Enable2faType (probablement un formulaire pour entrer le code 2FA).
-
-handleRequest : lie le formulaire aux données envoyées par l’utilisateur.
-
-6. Validation du formulaire
-if ($myForm->isSubmitted() && $myForm->isValid()) {
-    $data = $myForm->getData();
-    if ($googleAuthenticator->checkCode($user, $data['secret'])) {
-        $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
-        $entityManager->persist($user);
-        $entityManager->flush();
-        return $this->redirectToRoute('app_login');
-    } else {
-        $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
+    $secret = $session->get('2fa_secret');
+    if (!$secret) {
+        $secret = $googleAuthenticator->generateSecret();
+        $session->set('2fa_secret', $secret);
     }
+
+    $user->setGoogleAuthenticatorSecret($secret);
+
+    $myForm = $this->createForm(Enable2faType::class);
+    $myForm->handleRequest($request);
+
+    if ($myForm->isSubmitted() && $myForm->isValid()) {
+        $data = $myForm->getData();
+
+        if ($googleAuthenticator->checkCode($user, $data['secret'])) {
+            $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+            $entityManager->persist($user);
+            $entityManager->flush();
+            return $this->redirectToRoute('app_login');
+        } else {
+            $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
+        }
+    }
+
+    $qrCodeContent = $googleAuthenticator->getQRContent($user);
+
+    return $this->render('enable2fa.html.twig', [
+        'secret' => $secret,
+        'myForm' => $myForm,
+        'qrCodeContent' => $qrCodeContent,
+    ]);
 }
 
+🔹 Explication rapide :
 
-Si le formulaire est soumis et valide :
+Route et sécurité
 
-Récupère les données du formulaire ($data['secret'] correspond au code 2FA entré par l’utilisateur).
+#[Route(...)] : définit l’URL /enable2fa et le nom de route.
 
-Vérifie le code avec $googleAuthenticator->checkCode.
+#[IsGranted('ROLE_USER')] : accessible uniquement aux utilisateurs connectés.
 
-Si correct :
+Récupération de l’utilisateur : $user = $this->getUser();
 
-Ajoute un message de succès.
+Gestion du secret 2FA
 
-Sauvegarde l’utilisateur avec le secret 2FA activé.
+Vérifie si un secret existe dans la session.
 
-Redirige vers la page de login.
+Sinon, génère un nouveau secret et l’assigne à l’utilisateur.
 
-Sinon, affiche un message d’erreur.
+Formulaire 2FA
 
-7. Génération du QR code
-$qrCodeContent = $googleAuthenticator->getQRContent($user);
+Création et gestion du formulaire Enable2faType.
 
+Vérifie le code entré par l’utilisateur.
 
-Génère un QR code que l’utilisateur peut scanner avec l’application Google Authenticator pour lier son compte.
+Validation
 
-8. Rendu de la vue
-return $this->render('enable2fa.html.twig', [
-    'secret' => $secret,
-    'myForm' => $myForm,
-    'qrCodeContent' => $qrCodeContent,
-]);
+Si correct → active la 2FA et sauvegarde l’utilisateur.
 
+Sinon → affiche un message d’erreur.
 
-Envoie à la vue :
+QR Code
 
-Le secret (au cas où l’utilisateur voudrait le copier manuellement).
+Généré pour que l’utilisateur puisse scanner avec Google Authenticator.
 
-Le formulaire.
+Rendu de la vue
 
-Le contenu du QR code pour le scanner avec l’application mobile.
+Passe à la vue le secret, le formulaire et le QR code.
 
-✅ Résumé du fonctionnement
+✅ Résumé du fonctionnement :
 
 L’utilisateur connecté accède à /enable2fa.
 
 Le système génère ou récupère un secret 2FA.
 
-Affiche un QR code et un formulaire pour entrer le code généré par l’application.
+Affiche un QR code et un formulaire pour entrer le code.
 
-L’utilisateur entre le code → validation :
+Validation :
 
 Correct → 2FA activé et secret sauvegardé.
 
