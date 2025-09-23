@@ -61,8 +61,8 @@ composer require scheb/2fa-trusted-device
 Vérifier que le bundle est bien activé dans config/bundles.php :
 
 return [
-// ...
-Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
+    // ...
+    Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
 ];
 
 3) Configuration des routes 2FA
@@ -74,11 +74,11 @@ Créer ou modifier le fichier config/routes/scheb_2fa.yaml :
 
 # config/routes/scheb_2fa.yaml
 2fa_login:
-path: /2fa
-controller: "scheb_two_factor.form_controller::form"
+    path: /2fa
+    controller: "scheb_two_factor.form_controller::form"
 
 2fa_login_check:
-path: /2fa_check
+    path: /2fa_check
 
 4) Configuration de la sécurité
 
@@ -88,11 +88,11 @@ path: /2fa_check
 Exemple minimal dans config/packages/security.yaml :
 
 security:
-providers:
-app_user_provider:
-entity:
-class: App\Entity\User
-property: email
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Entity\User
+                property: email
 
     firewalls:
         main:
@@ -112,8 +112,8 @@ property: email
 Créer le fichier config/packages/scheb_two_factor.yaml :
 
 scheb_two_factor:
-security_tokens:
-- Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+    security_tokens:
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
 
     google:
         enabled: true
@@ -135,8 +135,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
-#[ORM\Column(type: 'boolean')]
-private bool $isGoogleAuthenticatorEnabled = false;
+    #[ORM\Column(type: 'boolean')]
+    private bool $isGoogleAuthenticatorEnabled = false;
 
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $googleAuthenticatorSecret = null;
@@ -197,12 +197,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 #[AsCommand(name: 'app:enable-2fa')]
 class Enable2FACommand extends Command
 {
-public function __construct(
-private EntityManagerInterface $em,
-private GoogleAuthenticatorInterface $googleAuthenticator
-) {
-parent::__construct();
-}
+    public function __construct(
+        private EntityManagerInterface $em,
+        private GoogleAuthenticatorInterface $googleAuthenticator
+    ) {
+        parent::__construct();
+    }
 
     protected function configure()
     {
@@ -258,10 +258,10 @@ Si le code est correct → connexion réussie.
 Exemple de config dans scheb_two_factor.yaml :
 
 scheb_two_factor:
-backup_codes:
-enabled: true
-codes: 10
-length: 6
-trusted_device:
-enabled: true
-lifetime: 2592000 # 30 jours
+    backup_codes:
+        enabled: true
+        codes: 10
+        length: 6
+    trusted_device:
+        enabled: true
+        lifetime: 2592000 # 30 jours
