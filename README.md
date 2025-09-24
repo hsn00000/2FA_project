@@ -495,7 +495,7 @@ return $this->render('enable2fa.html.twig', [
 ```mermaid
 graph TD
     A[Utilisateur se connecte] --> B[Email + Mot de passe]
-    B --> C{Credentials valides?}
+    B --> C{Identifiants valides?}
     C -->|Non| B
     C -->|Oui| D{2FA activée?}
     D -->|Non| E[Connexion réussie]
