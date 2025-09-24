@@ -12,31 +12,32 @@
         {% endblock %}
     </head>
     <body>
-        <nav class="navbar navbar-expand-lg bg-body-tertiary" data-bs-theme="dark">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
             <div class="container-fluid">
-                <a class="navbar-brand" href="{{ path('app_home') }}">Site Test</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+                <!-- Logo / Nom du site -->
+                <a class="navbar-brand fw-bold" href="{{ path('app_home') }}">Site Test</a>
+
+                <!-- Bouton responsive -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown"
+                        aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
+
+                <!-- Menu -->
                 <div class="collapse navbar-collapse" id="navbarNavDropdown">
-                    <ul class="navbar-nav">
+                    <ul class="navbar-nav ms-auto">
                         <li class="nav-item">
-                            <a class="nav-link active" aria-current="page" href="{{ path('app_home') }}">Accueil</a>
+                            <a class="nav-link {% if app.request.attributes.get('_route') == 'app_home' %}active{% endif %}"
+                               aria-current="page" href="{{ path('app_home') }}">Accueil</a>
                         </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Dropdown link
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Action</a></li>
-                                <li><a class="dropdown-item" href="#">Another action</a></li>
-                                <li><a class="dropdown-item" href="#">Something else here</a></li>
-                            </ul>
+                        <li class="nav-item">
+                            <a class="nav-link {% if app.request.attributes.get('_route') == 'app_login' %}active{% endif %}"
+                               href="{{ path('app_login') }}">Se connecter</a>
                         </li>
                     </ul>
                 </div>
             </div>
         </nav>
-        {% block body %}{% endblock %}
+    {% block body %}{% endblock %}
     </body>
 </html>

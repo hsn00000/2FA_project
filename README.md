@@ -1,80 +1,80 @@
-🔐 Authentification à deux facteurs (2FA) avec Google Authenticator – Symfony
+# 🔐 Guide Complet - Sécurité Symfony
+## Authentification à deux facteurs (2FA) + Réinitialisation de mot de passe
 
-Documentation basée sur le SchebTwoFactorBundle.
-Ce guide explique comment installer, configurer et activer la 2FA dans un projet Symfony.
+---
 
-⚙️ 1) Installation du projet Symfony
+## 📋 Table des matières
 
-Cloner le dépôt :
+1. [Installation du projet Symfony](#-1-installation-du-projet-symfony)
+2. [Configuration de l'authentification 2FA](#-2-authentification-à-deux-facteurs-2fa)
+3. [Configuration de la réinitialisation de mot de passe](#-3-réinitialisation-de-mot-de-passe)
+4. [Explications détaillées du code](#-4-explications-détaillées-du-code)
+5. [Bonnes pratiques de sécurité](#-5-bonnes-pratiques-de-sécurité)
+6. [Troubleshooting](#-6-troubleshooting)
 
+---
+
+## ⚙️ 1. Installation du projet Symfony
+
+### Étapes d'initialisation
+
+```bash
+# Cloner le projet
 git clone <url-du-repo>
 cd <nom-du-projet>
 
-
-Installer les dépendances :
-
+# Installer les dépendances
 composer install
 
-
-Configurer l’environnement :
-
+# Configuration de l'environnement
 cp .env .env.local
 
-
-Créer la base de données :
-
+# Créer et configurer la base de données
 symfony console doctrine:database:create
-
-
-Exécuter les migrations :
-
 symfony console doctrine:migrations:migrate
 
-
-Lancer le serveur Symfony :
-
+# Démarrer le serveur
 symfony server:start -d
 
-
-Créer un utilisateur de test :
-
+# Créer un utilisateur de test
 symfony console app:add-user user@example.com motdepasse --role ROLE_ADMIN
+```
 
-🔧 2) Installation du bundle 2FA
+---
 
-Installer le bundle principal et Google Authenticator :
+## 🔐 2. Authentification à deux facteurs (2FA)
 
+### 2.1 Installation des bundles 2FA
+
+```bash
+# Bundles essentiels
 composer require scheb/2fa-bundle scheb/2fa-google-authenticator
 
+# Bundles optionnels (recommandés)
+composer require scheb/2fa-backup-code      # Codes de secours
+composer require scheb/2fa-trusted-device   # Appareils de confiance
+```
 
-Optionnel : Ajouter des fonctionnalités supplémentaires (codes de secours, appareils de confiance) :
+### 2.2 Configuration des routes
 
-composer require scheb/2fa-backup-code
-composer require scheb/2fa-trusted-device
+**Fichier :** `config/routes/scheb_2fa.yaml`
 
-
-Vérifier que le bundle est activé dans config/bundles.php :
-
-return [
-    // ...
-    Scheb\TwoFactorBundle\SchebTwoFactorBundle::class => ['all' => true],
-];
-
-🛣️ 3) Configuration des routes
-
-Créer le fichier config/routes/scheb_2fa.yaml :
-
+```yaml
+# Route pour afficher le formulaire 2FA
 2fa_login:
     path: /2fa
     controller: "scheb_two_factor.form_controller::form"
 
+# Route pour vérifier le code 2FA
 2fa_login_check:
     path: /2fa_check
+```
 
-🛡️ 4) Configuration de la sécurité (security.yaml)
+### 2.3 Configuration de la sécurité
 
-Configurer le firewall pour activer la 2FA :
+**Fichier :** `config/packages/security.yaml`
 
+```yaml
 security:
     providers:
         app_user_provider:
@@ -88,53 +88,65 @@ security:
             custom_authenticator: App\Security\LoginFormAuthenticator
             logout:
                 path: app_logout
+            # Configuration 2FA
             two_factor:
-                auth_form_path: 2fa_login
-                check_path: 2fa_login_check
+                auth_form_path: 2fa_login      # Où rediriger pour la 2FA
+                check_path: 2fa_login_check    # Où vérifier le code
+```
 
-📦 5) Configuration du bundle (scheb_two_factor.yaml)
+### 2.4 Configuration du bundle 2FA
 
-Créer le fichier config/packages/scheb_two_factor.yaml :
+**Fichier :** `config/packages/scheb_two_factor.yaml`
 
+```yaml
 scheb_two_factor:
+    # Types de tokens de sécurité acceptés
     security_tokens:
         - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
 
+    # Configuration Google Authenticator
     google:
         enabled: true
-        server_name: "MonProjetSymfony"
-        issuer: "MonProjet"
-        digits: 6
-        window: 1
+        server_name: "MonProjetSymfony"  # Nom affiché dans l'app
+        issuer: "MonProjet"              # Émetteur du token
+        digits: 6                        # Nombre de chiffres du code
+        window: 1                        # Fenêtre de tolérance temporelle
 
-
-Options supplémentaires :
-
-scheb_two_factor:
+    # Fonctionnalités optionnelles
     backup_codes:
         enabled: true
-        codes: 10
-        length: 6
+        codes: 10                        # Nombre de codes de secours
+        length: 6                        # Longueur des codes
+    
     trusted_device:
         enabled: true
-        lifetime: 2592000 # 30 jours
+        lifetime: 2592000                # 30 jours en secondes
+```
 
-👤 6) Mise à jour de l’entité User
+### 2.5 Mise à jour de l'entité User
 
-L’entité User doit implémenter TwoFactorInterface :
+```php
+<?php
 
-use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
+namespace App\Entity;
+
 use Doctrine\ORM\Mapping as ORM;
+use Scheb\TwoFactorBundle\Model\Google\TwoFactorInterface;
+use Symfony\Component\Security\Core\User\UserInterface;
+use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 
 #[ORM\Entity]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
+    // ... autres propriétés
+
     #[ORM\Column(type: 'boolean')]
     private bool $isGoogleAuthenticatorEnabled = false;
 
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $googleAuthenticatorSecret = null;
 
+    // Méthodes requises par TwoFactorInterface
     public function isGoogleAuthenticatorEnabled(): bool
     {
         return $this->isGoogleAuthenticatorEnabled;
@@ -163,16 +175,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFact
         return $this;
     }
 }
+```
 
-
-Après modification :
-
+**Migration de la base :**
+```bash
 symfony console make:migration
 symfony console doctrine:migrations:migrate
+```
 
-🔑 7) Génération du secret Google Authenticator
+### 2.6 Commande pour activer la 2FA
 
-Exemple de commande Symfony pour activer la 2FA et générer un QR Code :
+**Fichier :** `src/Command/Enable2FACommand.php`
+
+```php
+<?php
 
 namespace App\Command;
 
@@ -195,9 +211,9 @@ class Enable2FACommand extends Command
         parent::__construct();
     }
 
-    protected function configure()
+    protected function configure(): void
     {
-        $this->addArgument('email', InputArgument::REQUIRED, 'Email de l’utilisateur');
+        $this->addArgument('email', InputArgument::REQUIRED, 'Email de l\'utilisateur');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -210,10 +226,12 @@ class Enable2FACommand extends Command
             return Command::FAILURE;
         }
 
+        // Génération du secret et activation
         $secret = $this->googleAuthenticator->generateSecret();
         $user->setGoogleAuthenticatorSecret($secret)->enableGoogleAuthenticator();
         $this->em->flush();
 
+        // Affichage du QR Code
         $qrCodeUrl = $this->googleAuthenticator->getQRContent($user);
         $output->writeln("2FA activée pour $email");
         $output->writeln("Ajoutez ce QR Code à Google Authenticator :");
@@ -222,40 +240,169 @@ class Enable2FACommand extends Command
         return Command::SUCCESS;
     }
 }
+```
 
-
-Exécution de la commande :
-
+**Utilisation :**
+```bash
 symfony console app:enable-2fa user@example.com
+```
 
-🔄 8) Workflow utilisateur
+---
 
-L’utilisateur se connecte avec email + mot de passe.
+## 🔑 3. Réinitialisation de mot de passe
 
-Symfony redirige vers /2fa.
+### 3.1 Installation du bundle
 
-L’utilisateur saisit le code temporaire généré par Google Authenticator.
+```bash
+composer require symfonycasts/reset-password-bundle
+```
 
-La connexion est validée si le code est correct.
+### 3.2 Configuration de base
 
-🛠️ 9) Options supplémentaires
+```bash
+# Créer l'entité ResetPasswordRequest
+php bin/console make:reset-password
 
-Codes de secours : via scheb/2fa-backup-code
+# Créer et exécuter les migrations
+php bin/console make:migration
+php bin/console doctrine:migrations:migrate
+```
 
-Appareils de confiance : via scheb/2fa-trusted-device
+### 3.3 Configuration du bundle
 
-Exemple de configuration :
+**Fichier :** `config/packages/reset_password.yaml`
 
-scheb_two_factor:
-    backup_codes:
-        enabled: true
-        codes: 10
-        length: 6
-    trusted_device:
-        enabled: true
-        lifetime: 2592000 # 30 jours
+```yaml
+symfonycasts_reset_password:
+    request_password_repository: App\Repository\ResetPasswordRequestRepository
+    lifetime: 3600                    # Durée de vie : 1 heure
+    throttle_limit: 3600              # Limitation : 1 demande par heure
+    enable_garbage_collection: true   # Nettoyage automatique des tokens expirés
+```
 
-📄 10) Explication de SecurityController.php::enable2fa
+### 3.4 Contrôleur de réinitialisation
+
+```php
+<?php
+
+namespace App\Controller;
+
+use App\Entity\User;
+use App\Repository\UserRepository;
+use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Routing\Annotation\Route;
+use SymfonyCasts\Bundle\ResetPassword\ResetPasswordHelperInterface;
+use SymfonyCasts\Bundle\ResetPassword\Exception\ResetPasswordExceptionInterface;
+
+class ResetPasswordController extends AbstractController
+{
+    public function __construct(
+        private ResetPasswordHelperInterface $resetPasswordHelper,
+        private EntityManagerInterface $entityManager
+    ) {}
+
+    #[Route('/reset-password', name: 'app_forgot_password_request')]
+    public function request(Request $request, MailerInterface $mailer, UserRepository $userRepository): Response
+    {
+        if ($request->isMethod('POST')) {
+            return $this->processSendingPasswordResetEmail(
+                $request->request->get('email'),
+                $mailer,
+                $userRepository
+            );
+        }
+
+        return $this->render('reset_password/request.html.twig');
+    }
+
+    #[Route('/reset-password/reset/{token}', name: 'app_reset_password')]
+    public function reset(Request $request, UserPasswordHasherInterface $passwordHasher, string $token = null): Response
+    {
+        if ($token) {
+            // Stocker le token en session pour éviter de l'exposer dans l'URL
+            $this->storeTokenInSession($token);
+            return $this->redirectToRoute('app_reset_password');
+        }
+
+        $token = $this->getTokenFromSession();
+        if (null === $token) {
+            throw $this->createNotFoundException('Token de réinitialisation introuvable.');
+        }
+
+        try {
+            $user = $this->resetPasswordHelper->validateTokenAndFetchUser($token);
+        } catch (ResetPasswordExceptionInterface $e) {
+            $this->addFlash('reset_password_error', 'Token invalide ou expiré.');
+            return $this->redirectToRoute('app_forgot_password_request');
+        }
+
+        // Le token est valide, traiter la soumission du formulaire
+        if ($request->isMethod('POST')) {
+            $this->removeTokenFromSession();
+
+            $plainPassword = $request->request->get('plainPassword');
+            
+            // Encoder le nouveau mot de passe
+            $encodedPassword = $passwordHasher->hashPassword($user, $plainPassword);
+            $user->setPassword($encodedPassword);
+            
+            // Supprimer la demande de réinitialisation
+            $this->resetPasswordHelper->removeResetRequest($token);
+            
+            $this->entityManager->flush();
+            $this->cleanSessionAfterReset();
+
+            return $this->redirectToRoute('app_login');
+        }
+
+        return $this->render('reset_password/reset.html.twig', [
+            'resetForm' => null, // Vous pouvez créer un formulaire Symfony ici
+        ]);
+    }
+
+    private function processSendingPasswordResetEmail(string $emailFormData, MailerInterface $mailer, UserRepository $userRepository): Response
+    {
+        $user = $userRepository->findOneBy(['email' => $emailFormData]);
+
+        // Ne pas révéler si l'utilisateur existe ou non
+        if (!$user) {
+            return $this->redirectToRoute('app_check_email');
+        }
+
+        try {
+            $resetToken = $this->resetPasswordHelper->generateResetToken($user);
+        } catch (ResetPasswordExceptionInterface $e) {
+            return $this->redirectToRoute('app_check_email');
+        }
+
+        $email = (new Email())
+            ->from('hello@example.com')
+            ->to($user->getEmail())
+            ->subject('Demande de réinitialisation de mot de passe')
+            ->html($this->renderView('reset_password/email.html.twig', [
+                'resetToken' => $resetToken,
+            ]));
+
+        $mailer->send($email);
+        
+        return $this->redirectToRoute('app_check_email');
+    }
+}
+```
+
+---
+
+## 💡 4. Explications détaillées du code
+
+### 4.1 Contrôleur d'activation 2FA - Analyse ligne par ligne
+
+```php
 #[Route(path: '/enable2fa', name: 'app_enable_2fa')]
 #[IsGranted('ROLE_USER')]
 public function enable2fa(
@@ -265,87 +412,215 @@ public function enable2fa(
     SessionInterface $session
 ): Response
 {
-    $user = $this->getUser();
+```
 
-    $secret = $session->get('2fa_secret');
-    if (!$secret) {
-        $secret = $googleAuthenticator->generateSecret();
-        $session->set('2fa_secret', $secret);
+**Explications :**
+- `#[Route(...)]` : Définit l'URL `/enable2fa` accessible via GET/POST
+- `#[IsGranted('ROLE_USER')]` : Seuls les utilisateurs connectés peuvent accéder à cette page
+- **Injection de dépendances** :
+    - `GoogleAuthenticatorInterface` : Service pour gérer Google Authenticator
+    - `EntityManagerInterface` : Pour persister les données en base
+    - `Request` : Pour récupérer les données du formulaire
+    - `SessionInterface` : Pour stocker temporairement le secret
+
+```php
+$user = $this->getUser();
+
+$secret = $session->get('2fa_secret');
+if (!$secret) {
+    $secret = $googleAuthenticator->generateSecret();
+    $session->set('2fa_secret', $secret);
+}
+```
+
+**Explications :**
+- `$this->getUser()` : Récupère l'utilisateur connecté
+- **Gestion du secret** :
+    - Vérifie si un secret existe déjà en session
+    - Sinon, génère un nouveau secret cryptographique
+    - Le stocke en session (temporaire, pas encore en base)
+
+```php
+$user->setGoogleAuthenticatorSecret($secret);
+
+$myForm = $this->createForm(Enable2faType::class);
+$myForm->handleRequest($request);
+```
+
+**Explications :**
+- `setGoogleAuthenticatorSecret()` : Assigne le secret à l'utilisateur (temporaire)
+- `createForm()` : Crée le formulaire de validation
+- `handleRequest()` : Traite la soumission du formulaire
+
+```php
+if ($myForm->isSubmitted() && $myForm->isValid()) {
+    $data = $myForm->getData();
+
+    if ($googleAuthenticator->checkCode($user, $data['secret'])) {
+        $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
+        $entityManager->persist($user);
+        $entityManager->flush();
+        return $this->redirectToRoute('app_login');
+    } else {
+        $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
     }
+}
+```
 
-    $user->setGoogleAuthenticatorSecret($secret);
+**Explications :**
+- **Validation du code** :
+    - `checkCode()` : Vérifie que le code entré correspond au secret
+    - Si correct → sauvegarde définitive en base de données
+    - Si incorrect → affiche un message d'erreur, le secret reste en session
 
-    $myForm = $this->createForm(Enable2faType::class);
-    $myForm->handleRequest($request);
+```php
+$qrCodeContent = $googleAuthenticator->getQRContent($user);
 
-    if ($myForm->isSubmitted() && $myForm->isValid()) {
-        $data = $myForm->getData();
+return $this->render('enable2fa.html.twig', [
+    'secret' => $secret,
+    'myForm' => $myForm,
+    'qrCodeContent' => $qrCodeContent,
+]);
+```
 
-        if ($googleAuthenticator->checkCode($user, $data['secret'])) {
-            $this->addFlash('success', 'L\'authentification à deux facteurs a été activée avec succès.');
-            $entityManager->persist($user);
-            $entityManager->flush();
-            return $this->redirectToRoute('app_login');
-        } else {
-            $this->addFlash('error', 'Le code de vérification est invalide. Veuillez réessayer.');
-        }
-    }
+**Explications :**
+- `getQRContent()` : Génère l'URL du QR code pour Google Authenticator
+- La vue reçoit :
+    - Le secret (pour affichage manuel)
+    - Le formulaire
+    - Le contenu du QR code
 
-    $qrCodeContent = $googleAuthenticator->getQRContent($user);
+### 4.2 Workflow complet de la 2FA
 
-    return $this->render('enable2fa.html.twig', [
-        'secret' => $secret,
-        'myForm' => $myForm,
-        'qrCodeContent' => $qrCodeContent,
-    ]);
+```mermaid
+graph TD
+    A[Utilisateur se connecte] --> B[Email + Mot de passe]
+    B --> C{Credentials valides?}
+    C -->|Non| B
+    C -->|Oui| D{2FA activée?}
+    D -->|Non| E[Connexion réussie]
+    D -->|Oui| F[Redirection vers /2fa]
+    F --> G[Saisie du code 6 chiffres]
+    G --> H{Code valide?}
+    H -->|Non| G
+    H -->|Oui| E
+```
+
+### 4.3 Sécurité du système de reset password
+
+**Protection contre les attaques :**
+
+1. **Timing attacks** : Le bundle utilise des comparaisons sécurisées
+2. **Token prediction** : Génération cryptographiquement sûre
+3. **Brute force** : Limitation du nombre de demandes par IP/utilisateur
+4. **Information disclosure** : Ne révèle jamais si un email existe
+
+**Cycle de vie d'un token :**
+```php
+// 1. Génération
+$resetToken = $this->resetPasswordHelper->generateResetToken($user);
+
+// 2. Validation
+$user = $this->resetPasswordHelper->validateTokenAndFetchUser($token);
+
+// 3. Suppression après utilisation
+$this->resetPasswordHelper->removeResetRequest($token);
+```
+
+---
+
+## 🛡️ 5. Bonnes pratiques de sécurité
+
+### 5.1 Configuration HTTPS obligatoire
+
+```yaml
+# config/packages/security.yaml
+security:
+    access_control:
+        - { path: ^/2fa, roles: IS_AUTHENTICATED_FULLY, requires_channel: https }
+        - { path: ^/reset-password, requires_channel: https }
+```
+
+### 5.2 Validation côté serveur
+
+```php
+// Toujours valider les inputs
+private function validateEmail(string $email): bool
+{
+    return filter_var($email, FILTER_VALIDATE_EMAIL) !== false;
 }
 
-🔹 Explication rapide :
+// Limitation de taux
+private function isRateLimited(Request $request): bool
+{
+    // Implémenter une logique de limitation par IP
+    return false;
+}
+```
 
-Route et sécurité
+### 5.3 Logging de sécurité
 
-#[Route(...)] : définit l’URL /enable2fa et le nom de route.
+```php
+use Psr\Log\LoggerInterface;
 
-#[IsGranted('ROLE_USER')] : accessible uniquement aux utilisateurs connectés.
+class SecurityController
+{
+    public function __construct(private LoggerInterface $securityLogger) {}
 
-Récupération de l’utilisateur : $user = $this->getUser();
+    private function logSecurityEvent(string $event, array $context = []): void
+    {
+        $this->securityLogger->info($event, array_merge([
+            'ip' => $this->request->getClientIp(),
+            'user_agent' => $this->request->headers->get('User-Agent'),
+            'timestamp' => new \DateTime(),
+        ], $context));
+    }
+}
+```
 
-Gestion du secret 2FA
+---
 
-Vérifie si un secret existe dans la session.
+## 🔧 6. Troubleshooting
 
-Sinon, génère un nouveau secret et l’assigne à l’utilisateur.
+### Problèmes courants et solutions
 
-Formulaire 2FA
+| Problème | Cause probable | Solution |
+|----------|----------------|----------|
+| QR Code ne s'affiche pas | Secret non généré | Vérifier la session et la génération du secret |
+| Code 2FA toujours invalide | Horloge désynchronisée | Ajuster le paramètre `window` dans la config |
+| Token de reset expiré trop vite | Configuration `lifetime` trop courte | Augmenter la durée dans `reset_password.yaml` |
+| Emails de reset non envoyés | Configuration du mailer | Vérifier `MAILER_DSN` dans `.env` |
 
-Création et gestion du formulaire Enable2faType.
+### Commandes de maintenance
 
-Vérifie le code entré par l’utilisateur.
+```bash
+# Nettoyer les tokens expirés
+php bin/console reset-password:remove-expired
 
-Validation
+# Vérifier la configuration 2FA
+php bin/console debug:config scheb_two_factor
 
-Si correct → active la 2FA et sauvegarde l’utilisateur.
+# Tester l'envoi d'emails
+php bin/console mailer:test
 
-Sinon → affiche un message d’erreur.
+# Voir les logs de sécurité
+tail -f var/log/security.log
+```
 
-QR Code
+### Variables d'environnement importantes
 
-Généré pour que l’utilisateur puisse scanner avec Google Authenticator.
+```bash
+# .env.local
+DATABASE_URL="mysql://user:password@127.0.0.1:3306/app_db"
+MAILER_DSN="smtp://localhost:1025"
+APP_SECRET="your-secret-key-here"
+```
 
-Rendu de la vue
+---
 
-Passe à la vue le secret, le formulaire et le QR code.
+## 📚 Ressources supplémentaires
 
-✅ Résumé du fonctionnement :
-
-L’utilisateur connecté accède à /enable2fa.
-
-Le système génère ou récupère un secret 2FA.
-
-Affiche un QR code et un formulaire pour entrer le code.
-
-Validation :
-
-Correct → 2FA activé et secret sauvegardé.
-
-Incorrect → message d’erreur.
+- [Documentation SchebTwoFactorBundle](https://symfony.com/bundles/SchebTwoFactorBundle/current/index.html)
+- [Documentation Reset Password Bundle](https://symfony.com/bundles/SymfonyCastsResetPasswordBundle/current/index.html)
+- [Guide de sécurité Symfony](https://symfony.com/doc/current/security.html)
+- [OWASP Authentication Cheat Sheet](https://owasp.org/www-project-cheat-sheets/cheatsheets/Authentication_Cheat_Sheet.html)
