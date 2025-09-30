@@ -72,7 +72,6 @@ class ResetPasswordController extends AbstractController
         if (null === ($resetToken = $this->getTokenObjectFromSession())) {
             // Si aucun token, on génère un faux token pour ne pas révéler si l'email existe et éviter les attaques
             // Cela empêche les attaquants de savoir si une adresse email est enregistrée ou non
-            // En générant un faux token, on affiche toujours la même page de confirmation
             // Cela améliore la sécurité en évitant les fuites d'informations
             // Ce token ce trouve dans l'url de réinitialisation envoyé par mail
             $resetToken = $this->resetPasswordHelper->generateFakeResetToken();
@@ -82,8 +81,6 @@ class ResetPasswordController extends AbstractController
         return $this->render('reset_password/check_email.html.twig', [
             'resetToken' => $resetToken,
         ]);
-
-        // check-email nous renvoie vers la fonction checkEmail() du contrôleur ResetPasswordController.php, qui affiche une page de confirmation.
     }
 
     /**
@@ -161,13 +158,16 @@ class ResetPasswordController extends AbstractController
     /**
      * Méthode privée : envoi du mail de réinitialisation.
      */
+
+    // Cette méthode est centrale dans le processus de réinitialisation du mot de passe.
+    // Elle gère la recherche de l'utilisateur, la génération du token, l'envoi du mail et la redirection.
     private function processSendingPasswordResetEmail(
         string $emailFormData,
         MailerInterface $mailer,
         TranslatorInterface $translator
     ): RedirectResponse
     {
-        // Recherche l'utilisateur par email
+        // Recherche l'utilisateur par email dans la base de donnée
         $user = $this->entityManager->getRepository(User::class)->findOneBy([
             'email' => $emailFormData,
         ]);
@@ -177,6 +177,8 @@ class ResetPasswordController extends AbstractController
             return $this->redirectToRoute('app_check_email');
         }
 
+
+        // Le try/catch nous montre si la génération du token a échoué
         try {
             // Génère le token de réinitialisation
             $resetToken = $this->resetPasswordHelper->generateResetToken($user);
@@ -204,7 +206,3 @@ class ResetPasswordController extends AbstractController
     }
 }
 
-//request() → formulaire de demande, envoie le mail avec le token.
-//checkEmail() → page de confirmation après demande (génère un faux token pour la sécurité).
-//reset() → vérifie le token, affiche le formulaire de changement, hash et sauvegarde le nouveau mot de passe.
-//processSendingPasswordResetEmail() → envoie le mail et stocke le token en session.
