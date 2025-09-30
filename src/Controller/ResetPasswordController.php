@@ -45,13 +45,18 @@ class ResetPasswordController extends AbstractController
         // Si le formulaire est soumis et valide
         if ($form->isSubmitted() && $form->isValid()) {
             /** @var string $email */
+            // Récupère l'email saisi dans le formulaire
             $email = $form->get('email')->getData();
 
             // Traitement de l'envoi du mail de réinitialisation
+            // La méthode privée gère l'envoi et la redirection vers la page de confirmation
+            // Elle verifie l'email saisie et génère le token
             return $this->processSendingPasswordResetEmail($email, $mailer, $translator);
         }
 
         // Affiche le formulaire
+        // Le render passe le formulaire à la vue Twig
+        // Le formulaire sera affiché dans reset_password/request.html.twig
         return $this->render('reset_password/request.html.twig', [
             'requestForm' => $form,
         ]);
@@ -65,18 +70,28 @@ class ResetPasswordController extends AbstractController
     {
         // On récupère le token en session
         if (null === ($resetToken = $this->getTokenObjectFromSession())) {
-            // Si aucun token, on génère un faux token pour ne pas révéler si l'email existe
+            // Si aucun token, on génère un faux token pour ne pas révéler si l'email existe et éviter les attaques
+            // Cela empêche les attaquants de savoir si une adresse email est enregistrée ou non
+            // En générant un faux token, on affiche toujours la même page de confirmation
+            // Cela améliore la sécurité en évitant les fuites d'informations
+            // Ce token ce trouve dans l'url de réinitialisation envoyé par mail
             $resetToken = $this->resetPasswordHelper->generateFakeResetToken();
         }
 
+        // Affiche la page de confirmation avec le token
         return $this->render('reset_password/check_email.html.twig', [
             'resetToken' => $resetToken,
         ]);
+
+        // check-email nous renvoie vers la fonction checkEmail() du contrôleur ResetPasswordController.php, qui affiche une page de confirmation.
     }
 
     /**
      * Étape 3 : Validation et réinitialisation du mot de passe via le lien email.
      */
+
+    // Le token est passé en paramètre dans l'URL
+    // Si le token est présent, on le stocke en session et on redirige vers la même route sans le token dans l'URL
     #[Route('/reset/{token}', name: 'app_reset_password')]
     public function reset(
         Request $request,
@@ -85,6 +100,7 @@ class ResetPasswordController extends AbstractController
         ?string $token = null
     ): Response
     {
+        // Si un token est présent dans l'URL, on le stocke en session et on redirige vers la même route sans le token
         if ($token) {
             // Stocke le token en session et le supprime de l'URL pour éviter les fuites
             $this->storeTokenInSession($token);
@@ -94,9 +110,11 @@ class ResetPasswordController extends AbstractController
         // Récupère le token depuis la session
         $token = $this->getTokenFromSession();
 
+        // Si aucun token en session, affiche une erreur
         if (null === $token) {
             throw $this->createNotFoundException('No reset password token found in the URL or in the session.');
         }
+
 
         try {
             /** @var User $user */

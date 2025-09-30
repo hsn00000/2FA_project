@@ -31,6 +31,8 @@ class ChangePasswordFormType extends AbstractType
                 // 'first_options' pour le premier champ
                 // 'second_options' pour le second champ
                 'first_options' => [
+
+
                     // Controle de la robustesse du mot de passe
                     'constraints' => [
                         // NotBlank → interdit un mot de passe vide.
