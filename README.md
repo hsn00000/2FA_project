@@ -286,6 +286,9 @@ graph LR
     E --> F[✍️ Saisie nouveau<br/>mot de passe]
     F --> G[✅ Mot de passe<br/>mis à jour]
 ```
+#### 🔑 **Qu'est-ce que un Token ?**
+Un Token est une valeur unique générée aléatoirement (souvent cryptographique). Il sert à authentifier ou autoriser une action (connexion, reset password, 2FA…). Il a généralement une durée de vie limitée et est à usage unique (ex. : lien de réinitialisation de mot de passe).
+
 
 #### 🛡️ **Fonctionnalités de sécurité intégrées**
 
