@@ -1297,10 +1297,15 @@ Vue:
 </div>
 {% endblock %}
 ```
-
-
-
-
+Plusieurs Problèmes :
+- Gotenberg doit être lancé dans un conteneur Docker
+```bash
+docker run -d -p "127.0.0.1:3000:3000" gotenberg/gotenberg:8
+```
+- Modifier le .env.local
+```bash
+GOTENBERG_DSN=http://localhost:3000
+```
 ---
 
 ## 📚 Ressources supplémentaires
