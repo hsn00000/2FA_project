@@ -20,6 +20,7 @@
         "scheb/2fa-google-authenticator": "^7.11",
         "scheb/2fa-totp": "^7.11",
         "scheb/2fa-trusted-device": "^7.11",
+        "sensiolabs/gotenberg-bundle": "^1.0",
         "symfony/asset": "7.3.*",
         "symfony/asset-mapper": "7.3.*",
         "symfony/console": "7.3.*",
