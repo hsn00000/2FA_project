@@ -11,7 +11,7 @@
 4. [Explications détaillées du code](#-4-explications-détaillées-du-code)
 5. [Bonnes pratiques de sécurité](#-5-bonnes-pratiques-de-sécurité)
 6. [Troubleshooting](#-6-troubleshooting)
-7. [Conversion_PDF_avec_Gotenberg](#-7-conversion_pdf_avec_gotenberg)
+7. [Conversion PDF avec Gotenberg](#-7-conversion_pdf_avec_gotenberg)
 
 ---
 
