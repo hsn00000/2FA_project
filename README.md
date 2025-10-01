@@ -11,6 +11,7 @@
 4. [Explications détaillées du code](#-4-explications-détaillées-du-code)
 5. [Bonnes pratiques de sécurité](#-5-bonnes-pratiques-de-sécurité)
 6. [Troubleshooting](#-6-troubleshooting)
+7. [Conversion_PDF_avec_Gotenberg](#-7-conversion_pdf_avec_gotenberg)
 
 ---
 
@@ -1235,6 +1236,70 @@ DATABASE_URL="mysql://user:password@127.0.0.1:3306/app_db"
 MAILER_DSN="smtp://localhost:1025"
 APP_SECRET="your-secret-key-here"
 ```
+---
+## ⚙️ 6. Conversion PDF avec Gotenberg
+
+Pour installer le bundle faire:
+```bash
+composer require sensiolabs/gotenberg-bundle
+```
+---
+Faire la commande :
+```bash
+symfony console make:controller PdfController
+```
+
+---
+Controller:
+```php
+<?php
+
+namespace App\Controller;
+
+use Sensiolabs\GotenbergBundle\GotenbergPdfInterface;
+use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+final class PdfController extends AbstractController
+{
+    #[Route('/pdf', name: 'app_pdf')]
+    public function PDF(GotenbergPdfInterface $gotenberg): Response
+    {
+        return $gotenberg->html()
+            ->content('pdf/index.html.twig', [
+                'controller_name' => 'PdfController',
+            ])
+            ->generate()
+            ->stream() // will return directly a stream response
+            ;
+    }
+}
+```
+Vue:
+```twig
+{% block title %}Hello PdfController!{% endblock %}
+
+{% block body %}
+<style>
+    .example-wrapper { margin: 1em auto; max-width: 800px; width: 95%; font: 18px/1.5 sans-serif; }
+    .example-wrapper code { background: #F5F5F5; padding: 2px 6px; }
+</style>
+
+<div class="example-wrapper">
+    <h1>Hello {{ controller_name }}! ✅</h1>
+
+    This friendly message is coming from:
+    <ul>
+        <li>Your controller at <code>C:/Users/kanici.hasan/Dev/Symfony/2FA/src/Controller/PdfController.php</code></li>
+        <li>Your template at <code>C:/Users/kanici.hasan/Dev/Symfony/2FA/templates/pdf/index.html.twig</code></li>
+    </ul>
+</div>
+{% endblock %}
+```
+
+
+
 
 ---
 
