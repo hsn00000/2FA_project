@@ -1,0 +1,55 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Mon profil{% endblock %}
+
+{% block body %}
+    <div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
+        <div class="card shadow-lg p-4" style="max-width: 600px; width: 100%;">
+            <div class="card-body">
+                <h1 class="h4 text-center mb-4">Mon profil</h1>
+
+                <div class="mb-4 text-center">
+                    <div class="rounded-circle bg-primary text-white d-inline-flex justify-content-center align-items-center"
+                         style="width: 80px; height: 80px; font-size: 32px;">
+                        {{ user.email|first|upper }}
+                    </div>
+                    <h5 class="mt-3">{{ user.email }}</h5>
+                    <span class="badge bg-secondary">Utilisateur actif</span>
+                </div>
+
+                <hr>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Âge</h6>
+                    <p class="mb-0">{{ user.age }} ans</p>
+                </div>
+
+                <div class="mb-3">
+                    <h6 class="text-muted">Catégorie d’ancienneté</h6>
+                    <p class="mb-0">
+                        {{ user.categorieAnciennete }}
+                    </p>
+                    <small class="text-muted">
+                        Catégorie 1 : moins d’un an •
+                        Catégorie 2 : 1 à 5 ans •
+                        Catégorie 3 : 5 à 15 ans •
+                        Catégorie 4 : plus de 15 ans
+                    </small>
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ path('app_home') }}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Retour à l’accueil
+                    </a>
+
+                    <a href="{{ path('app_logout') }}" class="btn btn-danger">
+                        Se déconnecter
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+

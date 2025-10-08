@@ -14,8 +14,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[UniqueEntity(fields: ['email'], message: 'There is already an account with this email')]
 class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
-
-
     #[ORM\Column(type: 'string', nullable: true)]
     private ?string $googleAuthenticatorSecret;
 
@@ -38,6 +36,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFact
      */
     #[ORM\Column]
     private ?string $password = null;
+
+    #[ORM\Column(type: 'date')]
+    private ?\DateTimeInterface $birthdate = null;
+
+    #[ORM\Column(type: 'date')]
+    private ?\DateTimeInterface $contractStartDate = null;
 
     #[ORM\Column]
     private bool $isVerified = false;
@@ -153,5 +157,67 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFact
         $this->isVerified = $isVerified;
 
         return $this;
+    }
+
+    public function getBirthdate(): ?\DateTimeInterface
+    {
+        return $this->birthdate;
+    }
+
+    public function setBirthdate(?\DateTimeInterface $birthdate): void
+    {
+        $this->birthdate = $birthdate;
+    }
+
+    public function getContractStartDate(): ?\DateTimeInterface
+    {
+        return $this->contractStartDate;
+    }
+
+    public function setContractStartDate(?\DateTimeInterface $contractStartDate): void
+    {
+        $this->contractStartDate = $contractStartDate;
+    }
+
+    // Calcule l'âge de l'utilisateur
+    public function getAge(): ?int
+    {
+        if ($this->birthdate === null) {
+            return null;
+        }
+        $aujourdHui = new \DateTime();
+        $diff = $aujourdHui->diff($this->birthdate);
+        return $diff->y;
+    }
+
+    public function getCategorieAnciennete(): ?int
+    {
+        if (!$this->contractStartDate) {
+            return null;
+        }
+
+        $today = new \DateTime();
+        $years = $today->diff($this->contractStartDate)->y;
+
+        return match (true) {
+            $years < 1 => 1,
+            $years < 5 => 2,
+            $years < 15 => 3,
+            default => 4,
+        };
+    }
+
+    // Retourne toutes les stats de l'utilisateur
+    public function getUserStats(): array
+    {
+        $age = $this->getAge();
+        $anciennete = $this->getAnciennete();
+        $estSenior = ($age !== null && $age >= 55);
+
+        return [
+            'age' => $age,
+            'anciennete' => $anciennete,
+            'estSenior' => $estSenior,
+        ];
     }
 }

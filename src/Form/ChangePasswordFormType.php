@@ -41,13 +41,15 @@ class ChangePasswordFormType extends AbstractType
                         ]),
                         // Length(min=12) → impose une longueur minimale (12 caractères).
                         new Length([
-                            'min' => 12,
+                            'min' => 8,
                             'minMessage' => 'Your password should be at least {{ limit }} characters',
                             // max length allowed by Symfony for security reasons
                             'max' => 4096,
                         ]),
                         // PasswordStrength() → impose une complexité (majuscules, chiffres, caractères spéciaux…).
-                        new PasswordStrength(),
+                        new PasswordStrength([
+                            'minScore' => PasswordStrength::STRENGTH_WEAK,
+                        ]),
                         // NotCompromisedPassword() → vérifie que le mot de passe n’apparaît pas dans une base de données de mots de passe piratés.
                         new NotCompromisedPassword(),
                     ],
